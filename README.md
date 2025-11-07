@@ -8,7 +8,7 @@ Convert web articles into LinkedIn posts in your authentic voice using AI.
 - 🤖 **AI-Powered**: Uses Claude to generate posts matching your voice
 - 📝 **Multiple Angles**: Get 3-5 different post variations per article
 - ✏️ **Edit & Review**: Review and customize posts before saving
-- 💾 **Notion Integration**: Save final posts directly to your Notion database
+- 💾 **Linkedin Publish Automation**: Publish Directly into Linkedin
 
 ## Tech Stack
 
