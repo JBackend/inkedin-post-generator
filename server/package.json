@@ -1,9 +1,9 @@
 {
   "name": "linkedin-post-generator-server",
   "version": "1.0.0",
-  "description": "Backend API for LinkedIn post generator",
-  "main": "src/index.js",
   "type": "module",
+  "description": "Backend for LinkedIn Post Generator",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"

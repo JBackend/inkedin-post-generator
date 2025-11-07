@@ -65,29 +65,44 @@ app.use((req, res, next) => {
 app.use('/auth', authRoutes);
 app.use('/api', postRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'LinkedIn Post Generator API',
-    version: '2.0.0',
-    endpoints: {
-      auth: {
-        login: 'GET /auth/linkedin',
-        callback: 'GET /auth/linkedin/callback',
-        status: 'GET /auth/status',
-        logout: 'POST /auth/logout'
-      },
-      api: {
-        health: 'GET /api/health',
-        scrape: 'POST /api/scrape',
-        generate: 'POST /api/generate',
-        scrapeAndGenerate: 'POST /api/scrape-and-generate',
-        refine: 'POST /api/refine',
-        publishToLinkedIn: 'POST /api/publish-to-linkedin'
-      }
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const clientDistPath = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientDistPath));
+
+  // Serve index.html for all non-API routes (SPA support)
+  app.get('*', (req, res, next) => {
+    // Skip API and auth routes
+    if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
+      return next();
     }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
   });
-});
+} else {
+  // Development: API info endpoint
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'LinkedIn Post Generator API',
+      version: '2.0.0',
+      endpoints: {
+        auth: {
+          login: 'GET /auth/linkedin',
+          callback: 'GET /auth/linkedin/callback',
+          status: 'GET /auth/status',
+          logout: 'POST /auth/logout'
+        },
+        api: {
+          health: 'GET /api/health',
+          scrape: 'POST /api/scrape',
+          generate: 'POST /api/generate',
+          scrapeAndGenerate: 'POST /api/scrape-and-generate',
+          refine: 'POST /api/refine',
+          publishToLinkedIn: 'POST /api/publish-to-linkedin'
+        }
+      }
+    });
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

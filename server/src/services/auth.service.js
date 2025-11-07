@@ -26,73 +26,45 @@ export function configurePassport() {
     clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
     callbackURL: process.env.LINKEDIN_CALLBACK_URL,
     scope: ['openid', 'profile', 'email', 'w_member_social'],
-    state: true,
-    // Custom state parameter handling
-    store: {
-      store: (req, state, meta, callback) => {
-        try {
-          // Store the original URL from the state parameter
-          const returnTo = req.query.state ? JSON.parse(decodeURIComponent(req.query.state)).returnTo : '/';
-          const stateObj = { returnTo };
-          return callback(null, JSON.stringify(stateObj));
-        } catch (err) {
-          console.error('Error storing state:', err);
-          return callback(err);
+    state: true
+  }, async (accessToken, refreshToken, params, profile, done) => {
+    try {
+      // Fetch user profile from LinkedIn's OpenID Connect userinfo endpoint
+      const userInfoResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
         }
-      },
-      verify: (req, state, callback) => {
-        try {
-          return callback(null, JSON.parse(state));
-        } catch (err) {
-          console.error('Error verifying state:', err);
-          return callback(err);
-        }
+      });
+
+      const userInfo = userInfoResponse.data;
+      console.log('Received LinkedIn userinfo:', JSON.stringify(userInfo, null, 2));
+
+      // Extract user data from OpenID Connect format
+      const linkedinId = userInfo.sub;
+      const name = userInfo.name || `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim();
+      const email = userInfo.email || null;
+      const profilePhoto = userInfo.picture || null;
+
+      if (!linkedinId) {
+        console.error('No user ID (sub) in userinfo response');
+        return done(new Error('Invalid userinfo response'));
       }
-    },
-    async (accessToken, refreshToken, params, profile, done) => {
-      // Get the state that was stored in the session
-      const state = this._oauth2._stateStore._state[this._state];
-      const stateObj = state ? JSON.parse(state) : {};
 
-      try {
-        // Fetch user profile from LinkedIn's OpenID Connect userinfo endpoint
-        const userInfoResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
+      // Create or update user in database
+      const user = await findOrCreateUser({
+        linkedinId,
+        accessToken,
+        refreshToken,
+        name,
+        email,
+        profilePhoto
+      });
 
-        const userInfo = userInfoResponse.data;
-        console.log('Received LinkedIn userinfo:', JSON.stringify(userInfo, null, 2));
-
-        // Extract user data from OpenID Connect format
-        const linkedinId = userInfo.sub;
-        const name = userInfo.name || `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim();
-        const email = userInfo.email || null;
-        const profilePhoto = userInfo.picture || null;
-
-        if (!linkedinId) {
-          console.error('No user ID (sub) in userinfo response');
-          return done(new Error('Invalid userinfo response'));
-        }
-
-        // Create or update user in database
-        const user = await findOrCreateUser({
-          linkedinId,
-          accessToken,
-          refreshToken,
-          name,
-          email,
-          profilePhoto,
-          returnTo: stateObj.returnTo || '/'
-        });
-
-        console.log('✅ User authenticated:', user.id);
-        return done(null, user);
-      } catch (error) {
-        console.error('Error in OAuth callback:', error.response?.data || error.message);
-        return done(error);
-      }
+      console.log('✅ User authenticated:', user.id);
+      return done(null, user);
+    } catch (error) {
+      console.error('Error in OAuth callback:', error.response?.data || error.message);
+      return done(error);
     }
   });
 
@@ -130,7 +102,7 @@ export function configurePassport() {
 /**
  * Find or create user in database
  */
-async function findOrCreateUser({ linkedinId, accessToken, refreshToken, name, email, profilePhoto, returnTo }) {
+async function findOrCreateUser({ linkedinId, accessToken, refreshToken, name, email, profilePhoto }) {
   try {
     // Check if user exists
     const existingUser = await query(
@@ -150,33 +122,21 @@ async function findOrCreateUser({ linkedinId, accessToken, refreshToken, name, e
              name = $4,
              email = $5,
              profile_photo = $6,
-             return_to = $7,
              updated_at = NOW()
-         WHERE linkedin_id = $8
+         WHERE linkedin_id = $7
          RETURNING *`,
-        [accessToken, refreshToken, tokenExpiresAt, name, email, profilePhoto, returnTo, linkedinId]
+        [accessToken, refreshToken, tokenExpiresAt, name, email, profilePhoto, linkedinId]
       );
 
       console.log('✅ Updated existing user:', updated.rows[0].id);
       return updated.rows[0];
     } else {
-      // Save the returnTo URL with the user
-      const user = {
-        linkedinId,
-        accessToken,
-        refreshToken,
-        tokenExpiresAt,
-        name,
-        email,
-        profilePhoto,
-        returnTo: stateObj.returnTo || '/'
-      };
-
+      // Create new user
       const newUser = await query(
-        `INSERT INTO users (linkedin_id, linkedin_access_token, linkedin_refresh_token, token_expires_at, name, email, profile_photo, return_to)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO users (linkedin_id, linkedin_access_token, linkedin_refresh_token, token_expires_at, name, email, profile_photo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [user.linkedinId, user.accessToken, user.refreshToken, user.tokenExpiresAt, user.name, user.email, user.profilePhoto, user.returnTo]
+        [linkedinId, accessToken, refreshToken, tokenExpiresAt, name, email, profilePhoto]
       );
 
       console.log('✅ Created new user:', newUser.rows[0].id);

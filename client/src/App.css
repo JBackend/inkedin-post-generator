@@ -288,6 +288,25 @@
   font-weight: 600;
   color: #111;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.voice-tooltip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 0.75rem;
+  color: #999;
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.voice-tooltip:hover {
+  color: #111;
 }
 
 .voice-description {

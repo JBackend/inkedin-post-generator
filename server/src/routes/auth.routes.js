@@ -13,30 +13,15 @@ router.get('/linkedin', passport.authenticate('linkedin'));
  * GET /auth/linkedin/callback
  * LinkedIn OAuth callback handler
  */
-router.get('/linkedin/callback', 
-  (req, res, next) => {
-    // Custom callback to handle the redirect after authentication
-    passport.authenticate('linkedin', { 
-      failureRedirect: '/auth/failure',
-      session: true
-    })(req, res, (err) => {
-      if (err) {
-        console.error('Authentication error:', err);
-        return res.redirect(`/auth/failure?error=${encodeURIComponent(err.message)}`);
-      }
-      
-      // Get the return URL from the user's session or default to home
-      const returnTo = req.user?.returnTo || '/';
-      const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-      
-      // Clear the returnTo from the user object
-      if (req.user) {
-        req.user.returnTo = undefined;
-      }
-      
-      // Redirect to the frontend with success status
-      res.redirect(`${frontendUrl}${returnTo}?auth=success`);
-    });
+router.get('/linkedin/callback',
+  passport.authenticate('linkedin', {
+    failureRedirect: 'http://localhost:5173/?auth=failure&error=auth_failed',
+    session: true
+  }),
+  (req, res) => {
+    // Successful authentication, redirect with success flag
+    const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/?auth=success`);
   }
 );
 
@@ -56,26 +41,10 @@ router.get('/failure', (req, res) => {
  * Check if user is authenticated
  */
 router.get('/status', (req, res) => {
-  // If we have a user in the session, return it
-  if (req.user) {
-    return res.json({
-      success: true,
-      authenticated: true,
-      user: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        profilePhoto: req.user.profile_photo,
-        linkedinId: req.user.linkedin_id
-      }
-    });
-  }
-  
-  // No user in session
   res.json({
     success: true,
-    authenticated: false,
-    user: null
+    authenticated: !!req.user,
+    user: req.user || null
   });
 });
 

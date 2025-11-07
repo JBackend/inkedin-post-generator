@@ -48,12 +48,13 @@ function App() {
             setEditedPost(content);
             if (savedArticle) setArticle(savedArticle);
             if (savedVoiceProfile) setVoiceProfile(savedVoiceProfile);
-            
-            // Auto-publish if we have all required data
+
+            // Restore post object for review section to render
             if (content) {
+              setPost({ post: content, voice: savedVoiceProfile || 'critical-observer' });
               setStep('review');
-              // Small delay to ensure state updates are processed
-              setTimeout(() => handlePublish(), 100);
+              // Note: User will need to click "Publish to LinkedIn" again
+              // This is better UX than auto-publishing without confirmation
             }
           } catch (e) {
             console.error('Error processing pending post:', e);
@@ -234,7 +235,7 @@ function App() {
 
   const handleConfirmPublish = async () => {
     setShowConfirmDialog(false);
-    await handlePublishClick();
+    await handlePublish();
   };
 
   const handleCancelPublish = () => {
@@ -271,16 +272,23 @@ function App() {
         <div className="header-content">
           <h1>LinkedIn Post Generator</h1>
           <div className="auth-section">
-            {isAuthenticated && user?.profilePhoto && (
-              <img
-                src={user.profilePhoto}
-                alt={user?.name || 'User'}
-                className="user-avatar"
-                title={user?.name ? `Logged in as ${user.name}` : 'User'}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
+            {isAuthenticated && (
+              <div className="user-info">
+                {user?.profilePhoto && (
+                  <img
+                    src={user.profilePhoto}
+                    alt={user.name}
+                    className="user-avatar"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <span className="user-name">Hi, {user?.name || 'User'}</span>
+                <button onClick={handleLogout} className="btn btn-link">
+                  Logout
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -315,7 +323,10 @@ function App() {
                     onChange={(e) => setVoiceProfile(e.target.value as VoiceProfile)}
                   />
                   <div className="voice-details">
-                    <div className="voice-name">Critical Observer</div>
+                    <div className="voice-name">
+                      Critical Observer
+                      <span className="voice-tooltip" title="Example: 'According to recent data from McKinsey, companies that...'">ⓘ</span>
+                    </div>
                     <div className="voice-description">
                       Data-driven skeptic who leads with stats, cites sources, and uses historical parallels. 250-300 words.
                     </div>
@@ -331,7 +342,10 @@ function App() {
                     onChange={(e) => setVoiceProfile(e.target.value as VoiceProfile)}
                   />
                   <div className="voice-details">
-                    <div className="voice-name">Thought Leader</div>
+                    <div className="voice-name">
+                      Thought Leader
+                      <span className="voice-tooltip" title="Example: 'The future of work isn't about remote vs office. It's about autonomy.'">ⓘ</span>
+                    </div>
                     <div className="voice-description">
                       Bold visionary who challenges paradigms with short, punchy insights. 150-200 words.
                     </div>
@@ -347,7 +361,10 @@ function App() {
                     onChange={(e) => setVoiceProfile(e.target.value as VoiceProfile)}
                   />
                   <div className="voice-details">
-                    <div className="voice-name">Storyteller</div>
+                    <div className="voice-name">
+                      Storyteller
+                      <span className="voice-tooltip" title="Example: 'Three years ago, I made a mistake that taught me everything about leadership...'">ⓘ</span>
+                    </div>
                     <div className="voice-description">
                       Warm narrator who shares personal experiences and lessons learned. 200-250 words.
                     </div>
@@ -359,7 +376,7 @@ function App() {
             {!isAuthenticated && (
               <div className="info-banner">
                 <span className="info-icon">💡</span>
-                <span>You'll connect LinkedIn when ready to publish</span>
+                <span>Generate posts for free. Connect LinkedIn when ready to publish.</span>
               </div>
             )}
 
@@ -390,7 +407,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'critical-observer' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('critical-observer')}
-                  disabled={step !== 'review'}
+                  disabled={step === 'loading'}
                   title="Data-driven analysis with stats and sources"
                 >
                   Critical Observer
@@ -398,7 +415,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'thought-leader' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('thought-leader')}
-                  disabled={step !== 'review'}
+                  disabled={step === 'loading'}
                   title="Bold insights and industry perspective"
                 >
                   Thought Leader
@@ -406,7 +423,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'storyteller' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('storyteller')}
-                  disabled={step !== 'review'}
+                  disabled={step === 'loading'}
                   title="Personal stories and experiences"
                 >
                   Storyteller
@@ -441,7 +458,7 @@ function App() {
                 </button>
               ) : (
                 <button
-                  onClick={handleLogin}
+                  onClick={handlePublishClick}
                   className="btn btn-primary"
                   title="Connect your LinkedIn account to publish"
                 >

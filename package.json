@@ -8,7 +8,11 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && nodemon src/index.js",
     "client": "cd client && npm run dev",
-    "install-all": "npm install && cd client && npm install && cd server && npm install"
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm install --production",
+    "build:all": "npm run install-all && npm run build:client",
+    "start": "cd server && node src/index.js"
   },
   "keywords": ["linkedin", "content-generation", "ai"],
   "author": "",

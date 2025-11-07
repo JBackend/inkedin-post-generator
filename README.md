@@ -5,22 +5,26 @@ Convert web articles into LinkedIn posts in your authentic voice using AI.
 ## Features
 
 - 🔗 **URL Input**: Paste any article URL to get started
-- 🤖 **AI-Powered**: Uses Claude to generate posts matching your voice
-- 📝 **Multiple Angles**: Get 3-5 different post variations per article
-- ✏️ **Edit & Review**: Review and customize posts before saving
-- 💾 **Linkedin Publish Automation**: Publish Directly into Linkedin
+- 🤖 **AI-Powered**: Uses Claude Sonnet 4 to generate posts matching your voice
+- 🎭 **Voice Profiles**: Choose from multiple writing styles (Critical Observer, Personal Stories, Analytical)
+- ✏️ **Edit & Refine**: Review and customize posts with AI-powered refinement
+- 🔐 **LinkedIn OAuth**: Secure authentication with LinkedIn
+- 📤 **Direct Publishing**: Publish directly to LinkedIn with one click
+- 💾 **Session Persistence**: Never lose your work during authentication
 
 ## Tech Stack
 
 ### Frontend
 - React + TypeScript
 - Vite
-- TailwindCSS (optional)
+- Custom CSS with modern design
 
 ### Backend
-- Node.js + Express
-- Anthropic Claude API
-- Notion API
+- Node.js + Express (ES6 modules)
+- PostgreSQL database
+- LinkedIn OAuth 2.0 (OpenID Connect)
+- Passport.js authentication
+- Anthropic Claude Sonnet 4 API
 - Cheerio/Puppeteer for web scraping
 
 ## Setup
@@ -30,20 +34,36 @@ Convert web articles into LinkedIn posts in your authentic voice using AI.
    npm run install-all
    ```
 
-2. **Configure Environment Variables**
+2. **Setup PostgreSQL Database**
    ```bash
-   cp .env.example .env
+   # Install PostgreSQL if not already installed
+   # macOS: brew install postgresql
+   # Ubuntu: sudo apt-get install postgresql
+
+   # Create database
+   createdb linkedin_post_generator
    ```
 
-   Add your API keys:
+3. **Configure Environment Variables**
+   ```bash
+   cp .env.example server/.env
+   ```
+
+   Update `server/.env` with your credentials:
+   - `DATABASE_URL`: PostgreSQL connection string
    - `ANTHROPIC_API_KEY`: Get from https://console.anthropic.com/
-   - `NOTION_API_KEY`: Create integration at https://www.notion.so/my-integrations
-   - `NOTION_DATABASE_ID`: Your Notion database ID
+   - `LINKEDIN_CLIENT_ID`: Create app at https://www.linkedin.com/developers/
+   - `LINKEDIN_CLIENT_SECRET`: From LinkedIn developer portal
+   - `LINKEDIN_CALLBACK_URL`: `http://localhost:3002/auth/linkedin/callback`
+   - `SESSION_SECRET`: Generate a random secure string
+   - `CLIENT_URL`: `http://localhost:5173`
 
-3. **Add your system_prompt.md**
-   - Place your voice analysis and generation instructions in `server/src/system_prompt.md`
+4. **LinkedIn OAuth Setup**
+   - Create a LinkedIn app at https://www.linkedin.com/developers/
+   - Add redirect URL: `http://localhost:3002/auth/linkedin/callback`
+   - Request scopes: `openid`, `profile`, `email`, `w_member_social`
 
-4. **Run Development Server**
+5. **Run Development Server**
    ```bash
    npm run dev
    ```
@@ -53,11 +73,13 @@ Convert web articles into LinkedIn posts in your authentic voice using AI.
 
 ## Usage
 
-1. Paste an article URL
-2. Click "Generate Posts"
-3. Review the generated variations
-4. Edit if needed
-5. Save to Notion
+1. Open http://localhost:5173
+2. Paste an article URL
+3. Select your preferred voice profile
+4. Click "Generate Post"
+5. Review and edit the generated post
+6. Click "Connect LinkedIn to Publish" (first time only)
+7. Publish directly to LinkedIn
 
 ## Project Structure
 
@@ -65,21 +87,32 @@ Convert web articles into LinkedIn posts in your authentic voice using AI.
 linkedin-post-generator/
 ├── client/                 # React frontend
 │   ├── src/
-│   │   ├── components/
-│   │   ├── services/
-│   │   └── App.tsx
+│   │   ├── App.tsx        # Main application
+│   │   ├── App.css        # Styles
+│   │   └── main.tsx       # Entry point
 │   └── package.json
 ├── server/                 # Express backend
 │   ├── src/
 │   │   ├── routes/        # API routes
+│   │   │   ├── auth.routes.js
+│   │   │   └── post.routes.js
 │   │   ├── services/      # Business logic
+│   │   │   ├── auth.service.js
+│   │   │   ├── claude.service.js
+│   │   │   ├── linkedin.service.js
+│   │   │   └── scraper.service.js
 │   │   ├── controllers/   # Request handlers
-│   │   ├── utils/         # Helper functions
-│   │   ├── system_prompt.md
-│   │   └── index.js
+│   │   ├── middleware/    # Express middleware
+│   │   │   └── session.js
+│   │   ├── database/      # Database config
+│   │   │   ├── db.js
+│   │   │   └── schema.sql
+│   │   └── index.js       # Server entry point
+│   ├── .env               # Environment variables
 │   └── package.json
-├── .env.example
-└── package.json
+├── .env.example           # Example environment file
+├── DEPLOYMENT.md          # Production deployment guide
+└── package.json           # Root package file
 ```
 
 ## License
