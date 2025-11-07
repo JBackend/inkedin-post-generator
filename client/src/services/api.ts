@@ -169,8 +169,9 @@ export async function checkAuthStatus(): Promise<AuthStatus> {
 /**
  * Get LinkedIn OAuth URL
  */
-export function getLinkedInLoginUrl(): string {
-  return `${AUTH_BASE_URL}/linkedin`;
+export function getLinkedInLoginUrl(returnTo: string = window.location.pathname): string {
+  const state = JSON.stringify({ returnTo });
+  return `${AUTH_BASE_URL}/linkedin?state=${encodeURIComponent(state)}`;
 }
 
 /**

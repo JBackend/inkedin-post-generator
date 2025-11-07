@@ -20,6 +20,7 @@ function App() {
   const [cachedPosts, setCachedPosts] = useState<Partial<Record<VoiceProfile, LinkedInPost>>>({});
   const [editedPost, setEditedPost] = useState('');
   const [error, setError] = useState('');
+  const [publishing, setPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -28,31 +29,50 @@ function App() {
     const checkAuthAndHandleCallback = async () => {
       // Check if this is a callback from LinkedIn
       const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const state = urlParams.get('state');
-
-      if (code && state) {
-        // We're in the middle of a LinkedIn OAuth flow
-        setAuthLoading(true);
-        try {
-          // The server should handle the OAuth callback and set the session
-          // We'll wait a moment to ensure the server has processed the callback
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Clear the URL parameters to prevent re-processing
-          window.history.replaceState({}, document.title, window.location.pathname);
-          
-          // Check auth status again to get the updated user
-          await checkAuth();
-        } catch (err) {
-          console.error('Error handling OAuth callback:', err);
-        } finally {
-          setAuthLoading(false);
+      const authStatus = urlParams.get('auth');
+      
+      // Handle successful authentication
+      if (authStatus === 'success') {
+        // Clear the auth status from URL
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        // Check auth status to get the latest user data
+        await checkAuth();
+        
+        // Check for pending post
+        const pendingPost = sessionStorage.getItem('pendingPost');
+        if (pendingPost) {
+          try {
+            const { content, article: savedArticle, voiceProfile: savedVoiceProfile } = JSON.parse(pendingPost);
+            setEditedPost(content);
+            if (savedArticle) setArticle(savedArticle);
+            if (savedVoiceProfile) setVoiceProfile(savedVoiceProfile);
+            
+            // Auto-publish if we have all required data
+            if (content) {
+              setStep('review');
+              // Small delay to ensure state updates are processed
+              setTimeout(() => handlePublish(), 100);
+            }
+          } catch (e) {
+            console.error('Error processing pending post:', e);
+          } finally {
+            sessionStorage.removeItem('pendingPost');
+          }
         }
-      } else {
-        // Normal auth check
-        checkAuth();
+      } 
+      // Handle auth failure
+      else if (authStatus === 'failure') {
+        const error = urlParams.get('error');
+        setError(error || 'Authentication failed. Please try again.');
+        // Clear the error from URL
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
       }
+      
+      // Always check auth status on mount
+      checkAuth();
     };
 
     checkAuthAndHandleCallback();
@@ -72,8 +92,20 @@ function App() {
     }
   };
 
-  const handleLogin = () => {
-    window.location.href = getLinkedInLoginUrl();
+  const handleLogin = (eventOrReturnTo?: React.MouseEvent | string) => {
+    try {
+      // Handle both direct calls and event-based calls
+      const returnTo = typeof eventOrReturnTo === 'string' 
+        ? eventOrReturnTo 
+        : window.location.pathname;
+        
+      // Encode the return URL in the state parameter
+      const state = JSON.stringify({ returnTo });
+      window.location.href = getLinkedInLoginUrl(state);
+    } catch (err) {
+      console.error('Error during login:', err);
+      setError('Failed to start authentication. Please try again.');
+    }
   };
 
   const handleLogout = async () => {
@@ -161,27 +193,48 @@ function App() {
     }
   };
 
-  const handlePublishClick = () => {
+  const handlePublishClick = async () => {
+    if (!isAuthenticated) {
+      try {
+        // Save the current post to session storage before redirecting to login
+        const postData = {
+          content: editedPost,
+          article,
+          voiceProfile
+        };
+        
+        sessionStorage.setItem('pendingPost', JSON.stringify(postData));
+        
+        // Get the current path to return to after auth
+        const returnTo = window.location.pathname;
+        handleLogin(returnTo);
+      } catch (err) {
+        console.error('Error saving post for later:', err);
+        setError('Failed to save post. Please try again.');
+      }
+      return;
+    }
+    
+    // If already authenticated, show confirmation dialog
     setShowConfirmDialog(true);
   };
 
-  const handleConfirmPublish = async () => {
-    setShowConfirmDialog(false);
-
-    if (!editedPost.trim()) {
-      setError('Post content cannot be empty');
-      return;
-    }
-
+  const handlePublish = async () => {
     try {
-      setStep('loading');
+      setPublishing(true);
       const result = await publishToLinkedIn(editedPost);
       setPublishedUrl(result.postUrl);
       setStep('published');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to publish to LinkedIn');
-      setStep('review');
+    } finally {
+      setPublishing(false);
     }
+  };
+
+  const handleConfirmPublish = async () => {
+    setShowConfirmDialog(false);
+    await handlePublishClick();
   };
 
   const handleCancelPublish = () => {
