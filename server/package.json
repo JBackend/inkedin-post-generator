@@ -1,0 +1,28 @@
+{
+  "name": "linkedin-post-generator-server",
+  "version": "1.0.0",
+  "description": "Backend API for LinkedIn post generator",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "axios": "^1.7.0",
+    "cheerio": "^1.0.0",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.0",
+    "express-session": "^1.18.2",
+    "passport": "^0.7.0",
+    "passport-oauth2": "^1.8.0",
+    "pg": "^8.16.3",
+    "puppeteer": "^22.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

@@ -1,0 +1,29 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173, // Force port 5173
+    strictPort: true, // Don't try to find another port if 5173 is in use
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+      '/auth': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      }
+    }
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+});

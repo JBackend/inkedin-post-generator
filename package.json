@@ -1,0 +1,20 @@
+{
+  "name": "linkedin-post-generator",
+  "version": "1.0.0",
+  "description": "Convert web articles into LinkedIn posts in your voice",
+  "main": "server/src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && nodemon src/index.js",
+    "client": "cd client && npm run dev",
+    "install-all": "npm install && cd client && npm install && cd server && npm install"
+  },
+  "keywords": ["linkedin", "content-generation", "ai"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  }
+}
