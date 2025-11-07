@@ -17,7 +17,7 @@ function App() {
   const [article, setArticle] = useState<Article | null>(null);
   const [analysis, setAnalysis] = useState<ArticleAnalysis | null>(null);
   const [post, setPost] = useState<LinkedInPost | null>(null);
-  const [cachedPosts, setCachedPosts] = useState<Record<VoiceProfile, LinkedInPost>>({} as Record<VoiceProfile, LinkedInPost>);
+  const [cachedPosts, setCachedPosts] = useState<Partial<Record<VoiceProfile, LinkedInPost>>>({});
   const [editedPost, setEditedPost] = useState('');
   const [error, setError] = useState('');
   const [publishedUrl, setPublishedUrl] = useState('');
@@ -108,7 +108,10 @@ function App() {
 
       // Cache the generated post
       if (generatedPost) {
-        setCachedPosts({ [voiceProfile]: generatedPost });
+        setCachedPosts(prev => ({
+          ...prev,
+          [voiceProfile]: generatedPost
+        }));
       }
 
       setStep('review');
@@ -215,23 +218,16 @@ function App() {
         <div className="header-content">
           <h1>LinkedIn Post Generator</h1>
           <div className="auth-section">
-            {isAuthenticated && (
-              <div className="user-info">
-                {user?.profilePhoto && (
-                  <img
-                    src={user.profilePhoto}
-                    alt={user.name}
-                    className="user-avatar"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                )}
-                <span className="user-name">Hi, {user?.name || 'User'}</span>
-                <button onClick={handleLogout} className="btn btn-link">
-                  Logout
-                </button>
-              </div>
+            {isAuthenticated && user?.profilePhoto && (
+              <img
+                src={user.profilePhoto}
+                alt={user?.name || 'User'}
+                className="user-avatar"
+                title={user?.name ? `Logged in as ${user.name}` : 'User'}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
             )}
           </div>
         </div>
@@ -310,7 +306,7 @@ function App() {
             {!isAuthenticated && (
               <div className="info-banner">
                 <span className="info-icon">💡</span>
-                <span>Generate posts for free. Connect LinkedIn when ready to publish.</span>
+                <span>You'll connect LinkedIn when ready to publish</span>
               </div>
             )}
 
@@ -341,21 +337,24 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'critical-observer' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('critical-observer')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
+                  title="Data-driven analysis with stats and sources"
                 >
                   Critical Observer
                 </button>
                 <button
                   className={`voice-pill ${voiceProfile === 'thought-leader' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('thought-leader')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
+                  title="Bold insights and industry perspective"
                 >
                   Thought Leader
                 </button>
                 <button
                   className={`voice-pill ${voiceProfile === 'storyteller' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('storyteller')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
+                  title="Personal stories and experiences"
                 >
                   Storyteller
                 </button>
