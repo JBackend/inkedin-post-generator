@@ -15,7 +15,7 @@ router.get('/linkedin', passport.authenticate('linkedin'));
  */
 router.get('/linkedin/callback',
   passport.authenticate('linkedin', {
-    failureRedirect: 'http://localhost:5173/?auth=failure&error=auth_failed',
+    failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?auth=failure&error=auth_failed`,
     session: true
   }),
   (req, res) => {
