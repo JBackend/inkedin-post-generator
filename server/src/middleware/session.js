@@ -23,14 +23,15 @@ export function configureSession() {
     name: 'linkedin_post_generator.sid',
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Required for OAuth state to be saved
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
-    }
+    },
+    proxy: process.env.NODE_ENV === 'production' // Trust Railway proxy
   });
 }
 
