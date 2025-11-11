@@ -12,7 +12,8 @@
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm install --production",
     "build:all": "npm run install-all && npm run build:client",
-    "start": "cd server && node src/index.js"
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && npm install && npm start"
   },
   "keywords": ["linkedin", "content-generation", "ai"],
   "author": "",
