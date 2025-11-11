@@ -15,12 +15,10 @@ function App() {
   const [voiceProfile, setVoiceProfile] = useState<VoiceProfile>('critical-observer');
   const [step, setStep] = useState<Step>('input');
   const [article, setArticle] = useState<Article | null>(null);
-  const [analysis, setAnalysis] = useState<ArticleAnalysis | null>(null);
   const [post, setPost] = useState<LinkedInPost | null>(null);
   const [cachedPosts, setCachedPosts] = useState<Partial<Record<VoiceProfile, LinkedInPost>>>({});
   const [editedPost, setEditedPost] = useState('');
   const [error, setError] = useState('');
-  const [publishing, setPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -51,7 +49,7 @@ function App() {
 
             // Restore post object for review section to render
             if (content) {
-              setPost({ post: content, voice: savedVoiceProfile || 'critical-observer' });
+              setPost({ post: content, angle: '', hook: '', hashtags: [] });
               setStep('review');
               // Note: User will need to click "Publish to LinkedIn" again
               // This is better UX than auto-publishing without confirmation
@@ -407,7 +405,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'critical-observer' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('critical-observer')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
                   title="Data-driven analysis with stats and sources"
                 >
                   Critical Observer
@@ -415,7 +413,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'thought-leader' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('thought-leader')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
                   title="Bold insights and industry perspective"
                 >
                   Thought Leader
@@ -423,7 +421,7 @@ function App() {
                 <button
                   className={`voice-pill ${voiceProfile === 'storyteller' ? 'active' : ''}`}
                   onClick={() => handleRegenerateWithVoice('storyteller')}
-                  disabled={step === 'loading'}
+                  disabled={step !== 'review'}
                   title="Personal stories and experiences"
                 >
                   Storyteller
