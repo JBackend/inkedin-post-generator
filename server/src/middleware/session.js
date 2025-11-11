@@ -29,7 +29,6 @@ export function configureSession() {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      domain: process.env.NODE_ENV === 'production' ? '.yourdomain.com' : undefined,
       path: '/',
     }
   });
