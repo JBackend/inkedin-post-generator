@@ -13,17 +13,35 @@ router.get('/linkedin', passport.authenticate('linkedin'));
  * GET /auth/linkedin/callback
  * LinkedIn OAuth callback handler
  */
-router.get('/linkedin/callback',
-  passport.authenticate('linkedin', {
-    failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?auth=failure&error=auth_failed`,
-    session: true
-  }),
-  (req, res) => {
-    // Successful authentication, redirect with success flag
+router.get('/linkedin/callback', (req, res, next) => {
+  passport.authenticate('linkedin', (err, user, info) => {
     const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/?auth=success`);
-  }
-);
+
+    // Log detailed error information
+    if (err) {
+      console.error('❌ OAuth error:', err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
+      return res.redirect(`${frontendUrl}/?auth=failure&error=auth_failed`);
+    }
+
+    if (!user) {
+      console.error('❌ No user returned from OAuth');
+      console.error('Info:', info);
+      return res.redirect(`${frontendUrl}/?auth=failure&error=no_user`);
+    }
+
+    // Establish login session
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        console.error('❌ Login error:', loginErr);
+        return res.redirect(`${frontendUrl}/?auth=failure&error=login_failed`);
+      }
+
+      console.log('✅ User successfully authenticated:', user.id);
+      return res.redirect(`${frontendUrl}/?auth=success`);
+    });
+  })(req, res, next);
+});
 
 /**
  * GET /auth/failure
