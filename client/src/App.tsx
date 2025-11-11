@@ -15,10 +15,12 @@ function App() {
   const [voiceProfile, setVoiceProfile] = useState<VoiceProfile>('critical-observer');
   const [step, setStep] = useState<Step>('input');
   const [article, setArticle] = useState<Article | null>(null);
+  const [_analysis, setAnalysis] = useState<ArticleAnalysis | null>(null);
   const [post, setPost] = useState<LinkedInPost | null>(null);
   const [cachedPosts, setCachedPosts] = useState<Partial<Record<VoiceProfile, LinkedInPost>>>({});
   const [editedPost, setEditedPost] = useState('');
   const [error, setError] = useState('');
+  const [_publishing, setPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
