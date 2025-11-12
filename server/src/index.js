@@ -55,6 +55,37 @@ app.use(configureSession());
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Simple Basic Auth middleware for closed beta (production only)
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const authUser = process.env.BASIC_AUTH_USER;
+    const authPass = process.env.BASIC_AUTH_PASSWORD;
+
+    // Skip auth if credentials not configured
+    if (!authUser || !authPass) {
+      return next();
+    }
+
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="LinkedIn Post Generator - Closed Beta"');
+      return res.status(401).send('Authentication required');
+    }
+
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    const [username, password] = credentials.split(':');
+
+    if (username === authUser && password === authPass) {
+      return next();
+    }
+
+    res.setHeader('WWW-Authenticate', 'Basic realm="LinkedIn Post Generator - Closed Beta"');
+    return res.status(401).send('Invalid credentials');
+  });
+}
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
