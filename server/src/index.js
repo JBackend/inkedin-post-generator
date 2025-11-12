@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from 'passport';
-import basicAuth from 'express-basic-auth';
 import postRoutes from './routes/post.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import { testConnection, initializeDatabase } from './database/db.js';
@@ -55,19 +54,6 @@ app.use(configureSession());
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Basic Authentication for closed beta (only in production)
-const basicAuthUser = process.env.BASIC_AUTH_USER || '';
-const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD || '';
-
-if (process.env.NODE_ENV === 'production' && basicAuthUser && basicAuthPassword) {
-  app.use(basicAuth({
-    users: { [basicAuthUser]: basicAuthPassword },
-    challenge: true,
-    realm: 'LinkedIn Post Generator - Closed Beta',
-  }));
-  console.log('🔒 Basic authentication enabled for closed beta');
-}
 
 // Request logging middleware
 app.use((req, res, next) => {
