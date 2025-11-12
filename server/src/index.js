@@ -57,9 +57,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Basic Authentication for closed beta (only in production)
-if (process.env.NODE_ENV === 'production' && process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASSWORD) {
+const basicAuthUser = process.env.BASIC_AUTH_USER || '';
+const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD || '';
+
+if (process.env.NODE_ENV === 'production' && basicAuthUser && basicAuthPassword) {
   app.use(basicAuth({
-    users: { [process.env.BASIC_AUTH_USER]: process.env.BASIC_AUTH_PASSWORD },
+    users: { [basicAuthUser]: basicAuthPassword },
     challenge: true,
     realm: 'LinkedIn Post Generator - Closed Beta',
   }));
