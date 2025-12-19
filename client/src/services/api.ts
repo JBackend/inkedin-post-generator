@@ -1,5 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
-const AUTH_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '/auth') || 'http://localhost:3002/auth';
+// Use relative URLs in production (same domain as frontend)
+  const API_BASE_URL = import.meta.env.VITE_API_URL ||
+    (import.meta.env.MODE === 'production' ? '/api' :
+  'http://localhost:3002/api');
+  const AUTH_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '/auth')
+   ||
+    (import.meta.env.MODE === 'production' ? '/auth' :
+  'http://localhost:3002/auth');
+
 
 export interface Article {
   url: string;
