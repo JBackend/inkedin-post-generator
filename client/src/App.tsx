@@ -4,6 +4,18 @@ import { scrapeAndGenerate, publishToLinkedIn, checkAuthStatus, getLinkedInLogin
 
 type Step = 'input' | 'loading' | 'review' | 'published';
 
+interface DraftData {
+  url: string;
+  voiceProfile: VoiceProfile;
+  article: Article | null;
+  post: LinkedInPost | null;
+  cachedPosts: Partial<Record<VoiceProfile, LinkedInPost>>;
+  editedPost: string;
+  timestamp: number;
+}
+
+const DRAFT_STORAGE_KEY = 'linkedin-post-draft';
+
 function App() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,6 +35,7 @@ function App() {
   const [_publishing, setPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   // Handle OAuth callback and check auth status on mount
   useEffect(() => {
@@ -92,6 +105,90 @@ function App() {
       setAuthLoading(false);
     }
   };
+
+  // Draft persistence functions
+  const saveDraft = () => {
+    if (!url || !article || !post) return; // Only save if we have generated content
+
+    const draft: DraftData = {
+      url,
+      voiceProfile,
+      article,
+      post,
+      cachedPosts,
+      editedPost,
+      timestamp: Date.now()
+    };
+
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      console.log('Draft saved to localStorage');
+    } catch (err) {
+      console.error('Failed to save draft:', err);
+    }
+  };
+
+  const loadDraft = () => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!savedDraft) return null;
+
+      const draft: DraftData = JSON.parse(savedDraft);
+
+      // Check if draft is less than 24 hours old
+      const hoursSinceSave = (Date.now() - draft.timestamp) / (1000 * 60 * 60);
+      if (hoursSinceSave > 24) {
+        clearDraft();
+        return null;
+      }
+
+      return draft;
+    } catch (err) {
+      console.error('Failed to load draft:', err);
+      return null;
+    }
+  };
+
+  const restoreDraft = (draft: DraftData) => {
+    setUrl(draft.url);
+    setVoiceProfile(draft.voiceProfile);
+    setArticle(draft.article);
+    setPost(draft.post);
+    setCachedPosts(draft.cachedPosts);
+    setEditedPost(draft.editedPost);
+    setStep('review');
+    setShowDraftBanner(false);
+    console.log('Draft restored');
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      console.log('Draft cleared from localStorage');
+    } catch (err) {
+      console.error('Failed to clear draft:', err);
+    }
+  };
+
+  // Check for existing draft on mount
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft && step === 'input') {
+      setShowDraftBanner(true);
+    }
+  }, []);
+
+  // Auto-save draft whenever relevant state changes
+  useEffect(() => {
+    // Only save when we have content and we're in review step
+    if (url && article && post && step === 'review') {
+      const timeoutId = setTimeout(() => {
+        saveDraft();
+      }, 1000); // Debounce: save 1 second after state changes
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [url, article, post, cachedPosts, editedPost, voiceProfile, step]);
 
   const handleLogin = (eventOrReturnTo?: React.MouseEvent | string) => {
     try {
@@ -226,6 +323,7 @@ function App() {
       const result = await publishToLinkedIn(editedPost);
       setPublishedUrl(result.postUrl);
       setStep('published');
+      clearDraft(); // Clear draft after successful publish
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to publish to LinkedIn');
     } finally {
@@ -253,6 +351,8 @@ function App() {
     setError('');
     setPublishedUrl('');
     setShowConfirmDialog(false);
+    setShowDraftBanner(false);
+    clearDraft(); // Clear saved draft when starting over
   };
 
   if (authLoading) {
@@ -295,6 +395,38 @@ function App() {
       </header>
 
       <main className="app-main">
+        {showDraftBanner && (
+          <div className="draft-banner">
+            <div className="draft-banner-content">
+              <span className="draft-icon">💾</span>
+              <div className="draft-text">
+                <strong>Draft found!</strong>
+                <p>You have an unsaved draft from your last session.</p>
+              </div>
+              <div className="draft-actions">
+                <button
+                  onClick={() => {
+                    const draft = loadDraft();
+                    if (draft) restoreDraft(draft);
+                  }}
+                  className="btn btn-primary"
+                >
+                  Resume Draft
+                </button>
+                <button
+                  onClick={() => {
+                    clearDraft();
+                    setShowDraftBanner(false);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="input-section">
             <div className="input-group">
               <input
@@ -402,31 +534,39 @@ function App() {
             </div>
 
             <div className="voice-tabs">
-              <span className="voice-tabs-label">Try a different voice:</span>
+              <span className="voice-tabs-label">
+                Try a different voice:
+                <span className="voice-counter">
+                  {Object.keys(cachedPosts).length}/3 generated
+                </span>
+              </span>
               <div className="voice-pills">
                 <button
-                  className={`voice-pill ${voiceProfile === 'critical-observer' ? 'active' : ''}`}
+                  className={`voice-pill ${voiceProfile === 'critical-observer' ? 'active' : ''} ${cachedPosts['critical-observer'] ? 'cached' : ''}`}
                   onClick={() => handleRegenerateWithVoice('critical-observer')}
                   disabled={step !== 'review'}
                   title="Data-driven analysis with stats and sources"
                 >
                   Critical Observer
+                  {cachedPosts['critical-observer'] && <span className="cached-indicator">✓</span>}
                 </button>
                 <button
-                  className={`voice-pill ${voiceProfile === 'thought-leader' ? 'active' : ''}`}
+                  className={`voice-pill ${voiceProfile === 'thought-leader' ? 'active' : ''} ${cachedPosts['thought-leader'] ? 'cached' : ''}`}
                   onClick={() => handleRegenerateWithVoice('thought-leader')}
                   disabled={step !== 'review'}
                   title="Bold insights and industry perspective"
                 >
                   Thought Leader
+                  {cachedPosts['thought-leader'] && <span className="cached-indicator">✓</span>}
                 </button>
                 <button
-                  className={`voice-pill ${voiceProfile === 'storyteller' ? 'active' : ''}`}
+                  className={`voice-pill ${voiceProfile === 'storyteller' ? 'active' : ''} ${cachedPosts['storyteller'] ? 'cached' : ''}`}
                   onClick={() => handleRegenerateWithVoice('storyteller')}
                   disabled={step !== 'review'}
                   title="Personal stories and experiences"
                 >
                   Storyteller
+                  {cachedPosts['storyteller'] && <span className="cached-indicator">✓</span>}
                 </button>
               </div>
             </div>
