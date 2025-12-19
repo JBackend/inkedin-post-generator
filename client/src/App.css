@@ -578,6 +578,38 @@
   animation: slideUp 0.3s ease-out;
 }
 
+/* Rate Limit Stats */
+.limit-stats {
+  background: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;

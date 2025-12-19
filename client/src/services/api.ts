@@ -53,24 +53,42 @@ export interface ApiResponse<T> {
 
 export type VoiceProfile = 'critical-observer' | 'thought-leader' | 'storyteller';
 
+export interface RateLimitError {
+  limitExceeded: true;
+  tier: 'anonymous' | 'authenticated';
+  limit: number;
+  current: number;
+  message: string;
+  resetsAt?: string;
+}
+
 /**
  * Scrapes and generates LinkedIn posts from a URL in one call
  */
 export async function scrapeAndGenerate(
   url: string,
   variations: number = 5,
-  voiceProfile: VoiceProfile = 'critical-observer'
+  voiceProfile: VoiceProfile = 'critical-observer',
+  anonymousCount: number = 0
 ): Promise<{ article: Article; posts: LinkedInPost[]; analysis: ArticleAnalysis }> {
   const response = await fetch(`${API_BASE_URL}/scrape-and-generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-anonymous-count': anonymousCount.toString(),
     },
     credentials: 'include',
-    body: JSON.stringify({ url, variations, voiceProfile }),
+    body: JSON.stringify({ url, variations, voiceProfile, anonymousCount }),
   });
 
   const data = await response.json();
+
+  // Handle rate limit errors specifically
+  if (response.status === 429 && data.limitExceeded) {
+    const error: any = new Error(data.message || 'Rate limit exceeded');
+    error.rateLimitInfo = data as RateLimitError;
+    throw error;
+  }
 
   if (!data.success) {
     throw new Error(data.error || 'Failed to scrape and generate posts');
@@ -220,4 +238,24 @@ export async function publishToLinkedIn(postContent: string): Promise<{ postUrl:
     postUrl: data.postUrl,
     postId: data.postId
   };
+}
+
+/**
+ * Get usage stats for current user
+ */
+export interface UsageStats {
+  tier: 'anonymous' | 'free' | 'premium';
+  current?: number;
+  limit: number;
+  resetsAt?: string;
+  message?: string;
+}
+
+export async function getUsageStats(): Promise<UsageStats> {
+  const response = await fetch(`${API_BASE_URL}/usage`, {
+    credentials: 'include'
+  });
+
+  const data = await response.json();
+  return data;
 }

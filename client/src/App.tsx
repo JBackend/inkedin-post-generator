@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import { scrapeAndGenerate, publishToLinkedIn, checkAuthStatus, getLinkedInLoginUrl, logout, type Article, type LinkedInPost, type ArticleAnalysis, type VoiceProfile, type User } from './services/api';
+import { scrapeAndGenerate, publishToLinkedIn, checkAuthStatus, getLinkedInLoginUrl, logout, getUsageStats, type Article, type LinkedInPost, type ArticleAnalysis, type VoiceProfile, type User, type UsageStats, type RateLimitError } from './services/api';
 
 type Step = 'input' | 'loading' | 'review' | 'published';
 
@@ -15,6 +15,7 @@ interface DraftData {
 }
 
 const DRAFT_STORAGE_KEY = 'linkedin-post-draft';
+const ANONYMOUS_COUNT_KEY = 'linkedin-post-anonymous-count';
 
 function App() {
   // Auth state
@@ -36,6 +37,12 @@ function App() {
   const [publishedUrl, setPublishedUrl] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+
+  // Rate limiting state
+  const [anonymousPostCount, setAnonymousPostCount] = useState(0);
+  const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
+  const [showRateLimitDialog, setShowRateLimitDialog] = useState(false);
+  const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitError | null>(null);
 
   // Handle OAuth callback and check auth status on mount
   useEffect(() => {
@@ -97,6 +104,16 @@ function App() {
       const status = await checkAuthStatus();
       setIsAuthenticated(status.authenticated);
       setUser(status.user);
+
+      // If authenticated, fetch usage stats
+      if (status.authenticated) {
+        try {
+          const stats = await getUsageStats();
+          setUsageStats(stats);
+        } catch (err) {
+          console.error('Failed to fetch usage stats:', err);
+        }
+      }
     } catch (err) {
       console.error('Auth check failed:', err);
       setIsAuthenticated(false);
@@ -105,6 +122,29 @@ function App() {
       setAuthLoading(false);
     }
   };
+
+  // Load anonymous post count from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedCount = localStorage.getItem(ANONYMOUS_COUNT_KEY);
+      if (savedCount) {
+        setAnonymousPostCount(parseInt(savedCount, 10));
+      }
+    } catch (err) {
+      console.error('Failed to load anonymous count:', err);
+    }
+  }, []);
+
+  // Save anonymous post count to localStorage whenever it changes
+  useEffect(() => {
+    if (!isAuthenticated && anonymousPostCount > 0) {
+      try {
+        localStorage.setItem(ANONYMOUS_COUNT_KEY, anonymousPostCount.toString());
+      } catch (err) {
+        console.error('Failed to save anonymous count:', err);
+      }
+    }
+  }, [anonymousPostCount, isAuthenticated]);
 
   // Draft persistence functions
   const saveDraft = () => {
@@ -228,7 +268,7 @@ function App() {
     setStep('loading');
 
     try {
-      const result = await scrapeAndGenerate(url, 1, voiceProfile);
+      const result = await scrapeAndGenerate(url, 1, voiceProfile, anonymousPostCount);
       const generatedPost = result.posts[0] || null;
 
       setArticle(result.article);
@@ -244,9 +284,30 @@ function App() {
         }));
       }
 
+      // Increment usage counter
+      if (!isAuthenticated) {
+        setAnonymousPostCount(prev => prev + 1);
+      } else {
+        // Refresh usage stats for authenticated users
+        try {
+          const stats = await getUsageStats();
+          setUsageStats(stats);
+        } catch (err) {
+          console.error('Failed to refresh usage stats:', err);
+        }
+      }
+
       setStep('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // Handle rate limit errors
+      if (err instanceof Error && (err as any).rateLimitInfo) {
+        const rateLimitError = (err as any).rateLimitInfo as RateLimitError;
+        setRateLimitInfo(rateLimitError);
+        setShowRateLimitDialog(true);
+        setError('');
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      }
       setStep('input');
     }
   };
@@ -259,7 +320,7 @@ function App() {
 
     // Check if this persona is already cached
     if (cachedPosts[newVoiceProfile]) {
-      // Use cached version instantly
+      // Use cached version instantly (no API call, no rate limit increment)
       const cachedPost = cachedPosts[newVoiceProfile];
       setPost(cachedPost);
       setEditedPost(cachedPost.post);
@@ -270,7 +331,7 @@ function App() {
     setStep('loading');
 
     try {
-      const result = await scrapeAndGenerate(url, 1, newVoiceProfile);
+      const result = await scrapeAndGenerate(url, 1, newVoiceProfile, anonymousPostCount);
       const generatedPost = result.posts[0] || null;
 
       setPost(generatedPost);
@@ -284,9 +345,30 @@ function App() {
         }));
       }
 
+      // Increment usage counter
+      if (!isAuthenticated) {
+        setAnonymousPostCount(prev => prev + 1);
+      } else {
+        // Refresh usage stats for authenticated users
+        try {
+          const stats = await getUsageStats();
+          setUsageStats(stats);
+        } catch (err) {
+          console.error('Failed to refresh usage stats:', err);
+        }
+      }
+
       setStep('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to regenerate post');
+      // Handle rate limit errors
+      if (err instanceof Error && (err as any).rateLimitInfo) {
+        const rateLimitError = (err as any).rateLimitInfo as RateLimitError;
+        setRateLimitInfo(rateLimitError);
+        setShowRateLimitDialog(true);
+        setError('');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to regenerate post');
+      }
       setStep('review');
     }
   };
@@ -441,6 +523,27 @@ function App() {
                 Generate Post
               </button>
             </div>
+
+            {/* Usage Stats Indicator */}
+            {!isAuthenticated && (
+              <div className="info-banner">
+                <span className="info-icon">ℹ️</span>
+                <span>
+                  {anonymousPostCount}/{3} free generations used.
+                  {anonymousPostCount >= 3 ? ' Sign in with LinkedIn for more!' : ''}
+                </span>
+              </div>
+            )}
+            {isAuthenticated && usageStats && usageStats.tier !== 'premium' && (
+              <div className="info-banner">
+                <span className="info-icon">📊</span>
+                <span>
+                  {usageStats.current || 0}/{usageStats.limit} articles this week.
+                  {usageStats.resetsAt && ` Resets ${new Date(usageStats.resetsAt).toLocaleDateString()}`}
+                </span>
+              </div>
+            )}
+
             {error && <div className="error">{error}</div>}
 
             <div className="voice-profile-section">
@@ -643,6 +746,68 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Rate Limit Dialog */}
+      {showRateLimitDialog && rateLimitInfo && (
+        <div className="modal-overlay" onClick={() => setShowRateLimitDialog(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>
+              {rateLimitInfo.tier === 'anonymous' ? '🔒 Free Limit Reached' : '📊 Weekly Limit Reached'}
+            </h2>
+            <p>{rateLimitInfo.message}</p>
+
+            <div className="limit-stats">
+              <div className="stat">
+                <span className="stat-label">Used:</span>
+                <span className="stat-value">{rateLimitInfo.current}/{rateLimitInfo.limit}</span>
+              </div>
+              {rateLimitInfo.resetsAt && (
+                <div className="stat">
+                  <span className="stat-label">Resets:</span>
+                  <span className="stat-value">{new Date(rateLimitInfo.resetsAt).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              {rateLimitInfo.tier === 'anonymous' ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowRateLimitDialog(false);
+                      handleLogin();
+                    }}
+                    className="btn btn-primary"
+                  >
+                    Sign in with LinkedIn
+                  </button>
+                  <button
+                    onClick={() => setShowRateLimitDialog(false)}
+                    className="btn btn-secondary"
+                  >
+                    Maybe Later
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowRateLimitDialog(false)}
+                    className="btn btn-primary"
+                  >
+                    Upgrade to Premium
+                  </button>
+                  <button
+                    onClick={() => setShowRateLimitDialog(false)}
+                    className="btn btn-secondary"
+                  >
+                    OK
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

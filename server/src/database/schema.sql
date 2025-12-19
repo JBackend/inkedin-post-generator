@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255),
   email VARCHAR(255),
   profile_photo TEXT,
+  post_count INTEGER DEFAULT 0,
+  week_start TIMESTAMP DEFAULT NOW(),
+  subscription_tier VARCHAR(50) DEFAULT 'free',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
