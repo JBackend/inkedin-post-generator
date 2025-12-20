@@ -8,13 +8,27 @@ import * as cheerio from 'cheerio';
  */
 export async function scrapeArticle(url) {
   try {
-    // Fetch the HTML content
-    const response = await axios.get(url, {
-      headers: {
+    // Determine which scraping method to use
+    const scraperApiKey = process.env.SCRAPER_API_KEY;
+    let fetchUrl = url;
+    let requestConfig = {
+      timeout: 30000 // Longer timeout for ScraperAPI
+    };
+
+    if (scraperApiKey) {
+      // Use ScraperAPI - handles anti-bot, JavaScript, proxies
+      fetchUrl = `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}`;
+      console.log('🌐 Using ScraperAPI for:', url);
+    } else {
+      // Fallback to direct scraping with User-Agent
+      requestConfig.headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      },
-      timeout: 15000
-    });
+      };
+      console.log('⚠️  Direct scraping (no ScraperAPI key):', url);
+    }
+
+    // Fetch the HTML content
+    const response = await axios.get(fetchUrl, requestConfig);
 
     const html = response.data;
     const $ = cheerio.load(html);
@@ -104,7 +118,12 @@ export async function validateUrl(url) {
     // Basic URL validation
     new URL(url);
 
-    // Check if URL is accessible
+    // If using ScraperAPI, skip HEAD check (let ScraperAPI handle it)
+    if (process.env.SCRAPER_API_KEY) {
+      return true; // ScraperAPI will handle accessibility
+    }
+
+    // Direct validation - check if URL is accessible
     const response = await axios.head(url, {
       timeout: 5000,
       headers: {

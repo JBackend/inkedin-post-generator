@@ -34,10 +34,6 @@ LINKEDIN_CALLBACK_URL=http://localhost:3002/auth/linkedin/callback
 # Anthropic Claude API key
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-# ScraperAPI key for web scraping (bypasses bot detection and anti-scraping)
-# Get free API key at https://www.scraperapi.com (1000 free requests/month)
-SCRAPER_API_KEY=your_scraper_api_key_here
-
 # ============================
 # Client Configuration
 # ============================
